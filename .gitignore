@@ -1,0 +1,10 @@
+# Playwright MCP session files
+.playwright-mcp/
+
+# Local Claude settings
+.claude/
+
+# Development screenshots and reference files
+*.png
+*.webp
+reference-source.txt

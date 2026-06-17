@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JigPuzz</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%2316213e'/><path d='M7,7 H25 V13 C25,12 28,12 28,16 C28,20 25,20 25,19 V25 H19 C19,25 19,22 16,22 C13,22 13,25 13,25 H7 Z' fill='%23e94560'/></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sidebar-w: 220px;
+    --topbar-h: 48px;
+    --bg-deep:    #0a0a14;
+    --bg-sidebar: #12122a;
+    --bg-topbar:  #0e0e22;
+    --bg-card:    #1a1a35;
+    --accent:     #e94560;
+    --accent-dim: #9b2e42;
+    --text:       #e8e8f0;
+    --text-muted: #7070a0;
+    --border:     rgba(255,255,255,0.07);
+    --radius:     8px;
+    --transition: 0.18s ease;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  #app {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    height: 100vh;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 10;
+    transition: width var(--transition), min-width var(--transition);
+  }
+
+  #sidebar-header {
+    padding: 20px 16px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #sidebar-toggle { margin-left: auto; color: #fff; font-size: 16px; }
+  #sidebar-tooltip {
+    position: fixed; background: #1a1a35; color: #fff; font-size: 11px;
+    padding: 4px 8px; border-radius: 6px; border: 1px solid #2a2a50;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 1000;
+  }
+
+  #sidebar-logo {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  #sidebar-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  #sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .ctrl-group {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ctrl-group:last-child { border-bottom: none; }
+
+  .ctrl-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+
+  /* Difficulty pills */
+  #difficulty-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  .diff-btn {
+    padding: 6px 4px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    transition: all var(--transition);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .diff-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+  .diff-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Action buttons */
+  .action-btn {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: all var(--transition);
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .action-btn:last-child { margin-bottom: 0; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #ff5575; }
+
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: rgba(255,255,255,0.25); background: #20203a; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+  }
+  .btn-ghost:hover { background: var(--bg-card); color: var(--text); }
+
+
+  /* Sidebar label text (hidden on narrow) */
+  .btn-label { overflow: hidden; }
+
+  /* ── Main area ───────────────────────────────────────── */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Topbar ──────────────────────────────────────────── */
+  #topbar {
+    height: var(--topbar-h);
+    min-height: var(--topbar-h);
+    background: var(--bg-topbar);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    gap: 12px;
+    z-index: 5;
+  }
+
+  #topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  #hud-progress {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  #hud-locked { color: var(--accent); font-weight: 600; }
+  #hud-total { color: var(--text); }
+
+  #progress-bar-wrap {
+    width: 120px;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  #topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all var(--transition);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .topbar-btn:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+
+  #sidebar.sidebar-collapsed { width: 52px; min-width: 52px; }
+  #sidebar.sidebar-collapsed #sidebar-title,
+  #sidebar.sidebar-collapsed .ctrl-label,
+  #sidebar.sidebar-collapsed .btn-label { display: none; }
+  #sidebar.sidebar-collapsed .action-btn { justify-content: center; }
+  #sidebar.sidebar-collapsed #sidebar-logo { display: none; }
+  #sidebar.sidebar-collapsed #sidebar-header { padding-left: 4px; padding-right: 4px; justify-content: center; }
+  #sidebar.sidebar-collapsed #sidebar-toggle { margin-left: 0; }
+
+  #hud-difficulty {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* ── Canvas area ─────────────────────────────────────── */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-deep);
+  }
+
+  #main-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Peek modal ───────────────────────────────────── */
+  #peek-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 12px;
+    background: #0a0a14;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px var(--border);
+    max-width: 90vw;
+    max-height: 90vh;
+    outline: none;
+  }
+  #peek-modal::backdrop {
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(3px);
+  }
+  #peek-modal-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  #peek-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  #peek-modal-header span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  #peek-img {
+    display: block;
+    max-width: 80vw;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 0 0 12px 12px;
+  }
+
+  /* ── Win screen ──────────────────────────────────────── */
+  #win-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.4s ease;
+  }
+  #win-screen[hidden] { display: none; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  #win-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(233,69,96,0.3);
+    border-radius: 16px;
+    padding: 40px 48px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(233,69,96,0.25), 0 24px 60px rgba(0,0,0,0.6);
+    animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 380px;
+    width: 90vw;
+  }
+
+  @keyframes popIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  #win-emoji { font-size: 48px; margin-bottom: 12px; }
+  #win-title {
+    font-size: 26px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #e94560, #ff8c69);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+  #win-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+  .win-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .win-stat:last-of-type { border-bottom: none; margin-bottom: 24px; }
+  .win-stat-label { color: var(--text-muted); }
+  .win-stat-value { font-weight: 600; color: var(--text); }
+  #win-play-again {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition);
+    letter-spacing: 0.03em;
+  }
+  #win-play-again:hover { background: #ff5575; transform: translateY(-1px); }
+
+  /* ── Responsive collapse ─────────────────────────────── */
+  @media (max-width: 768px) {
+    :root { --sidebar-w: 52px; }
+
+    #sidebar-title,
+    .ctrl-label,
+    .btn-label { display: none; }
+
+    .ctrl-group { padding: 8px 6px; }
+
+    #difficulty-group {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+    .diff-btn { padding: 8px 4px; border-radius: 6px; }
+
+    .action-btn { justify-content: center; padding: 9px 6px; }
+
+    #progress-bar-wrap { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Sidebar ─────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <span id="sidebar-logo">🧩</span>
+      <span id="sidebar-title">JigPuzz</span>
+      <button id="sidebar-toggle" class="topbar-btn" data-tooltip="Collapse sidebar">◀</button>
+    </div>
+    <div id="sidebar-body">
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Image</div>
+        <button id="upload-btn" class="action-btn btn-secondary" type="button">
+          <span>📁</span><span class="btn-label">Upload Image</span>
+        </button>
+        <input type="file" id="upload-input" accept="image/*" style="display:none">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Difficulty</div>
+        <div id="difficulty-group">
+          <button class="diff-btn active" data-difficulty="easy">Easy</button>
+          <button class="diff-btn" data-difficulty="medium">Medium</button>
+          <button class="diff-btn" data-difficulty="hard">Hard</button>
+          <button class="diff-btn" data-difficulty="expert">Expert</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">Puzzle</div>
+        <button id="new-puzzle-btn" class="action-btn btn-primary">
+          <span>✨</span><span class="btn-label">New Puzzle</span>
+        </button>
+        <button id="scatter-btn" class="action-btn btn-secondary">
+          <span>💨</span><span class="btn-label">Scatter</span>
+        </button>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label">View</div>
+        <button id="peek-btn" class="action-btn btn-secondary">
+          <span>🖼️</span><span class="btn-label">Peek</span>
+        </button>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ── Main area ───────────────────────────────────── -->
+  <div id="main">
+
+    <!-- Topbar -->
+    <div id="topbar">
+      <div id="topbar-left">
+        <span id="hud-difficulty">Easy</span>
+        <span id="hud-progress">
+          <span id="hud-locked">0</span>
+          <span style="color:var(--text-muted)"> / </span>
+          <span id="hud-total">0</span>
+          <span style="color:var(--text-muted)"> locked</span>
+        </span>
+        <div id="progress-bar-wrap">
+          <div id="progress-bar"></div>
+        </div>
+      </div>
+      <div id="topbar-right"></div>
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvas-wrap">
+      <canvas id="main-canvas"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<!-- Peek modal -->
+<dialog id="peek-modal">
+  <div id="peek-modal-inner">
+    <div id="peek-modal-header">
+      <span>Peek</span>
+    </div>
+    <img id="peek-img" src="" alt="Puzzle image preview" style="cursor:pointer">
+  </div>
+</dialog>
+
+<!-- Win screen -->
+<div id="win-screen" hidden>
+  <div id="win-card">
+    <div id="win-emoji">🎉</div>
+    <div id="win-title">Puzzle Complete!</div>
+    <div id="win-subtitle">Congratulations — you solved it!</div>
+    <div class="win-stat">
+      <span class="win-stat-label">Pieces</span>
+      <span class="win-stat-value" id="win-piece-count">—</span>
+    </div>
+    <div class="win-stat">
+      <span class="win-stat-label">Time</span>
+      <span class="win-stat-value" id="win-time">—</span>
+    </div>
+    <div class="win-stat">
+      <span class="win-stat-label">Difficulty</span>
+      <span class="win-stat-value" id="win-difficulty">—</span>
+    </div>
+    <button id="win-play-again">Play Again</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// SECTION 1 — Constants & Config
+// ═══════════════════════════════════════════════════════════
+
+const DIFFICULTIES = {
+  easy:   { target: 24,  snapThreshold: 40, label: 'Easy'   },
+  medium: { target: 63,  snapThreshold: 30, label: 'Medium' },
+  hard:   { target: 120, snapThreshold: 22, label: 'Hard'   },
+  expert: { target: 208, snapThreshold: 15, label: 'Expert' },
+};
+
+const TAB_MARGIN_RATIO = 0.35;
+const BOARD_PADDING    = 40;
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 2 — State
+// ═══════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('main-canvas');
+const ctx    = canvas.getContext('2d');
+
+const state = {
+  difficulty:    'easy',
+  pieces:        [],
+  groups:        [],     // all group objects
+  z:             [],     // z-order array of pieces (bottom → top)
+  drag:          null,   // { group, off:{x,y} } or null
+  dirty:         true,
+  displayScale:  1,      // boardDisplayW / imgW
+  imageEl:       null,
+  imgW:          0,
+  imgH:          0,
+  gridCols:      0,
+  gridRows:      0,
+  pieceW:        0,
+  pieceH:        0,
+  boardX:        0,
+  boardY:        0,
+  boardDisplayW: 0,
+  boardDisplayH: 0,
+  gameStartTime: null,
+  gameEndTime:   null,
+  rafId:         null,
+  audioCtx:      null,
+};
+
+function canvasLogicalW() { return canvas.clientWidth;  }
+function canvasLogicalH() { return canvas.clientHeight; }
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  const dpr  = window.devicePixelRatio || 1;
+  const w    = wrap.clientWidth;
+  const h    = wrap.clientHeight;
+  if (canvas.width  !== Math.round(w * dpr) ||
+      canvas.height !== Math.round(h * dpr)) {
+    canvas.width  = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    if (state.pieces.length > 0) repositionBoard();
+  }
+  state.dirty = true;
+}
+
+function repositionBoard() {
+  const lw = canvasLogicalW();
+  const lh = canvasLogicalH();
+  const boardAreaW = lw - BOARD_PADDING * 2;
+  const boardAreaH = lh - BOARD_PADDING * 2;
+  const scaleX     = boardAreaW / state.imgW;
+  const scaleY     = boardAreaH / state.imgH;
+  const scale      = Math.min(scaleX, scaleY, 1);
+  state.boardDisplayW  = state.imgW * scale;
+  state.boardDisplayH  = state.imgH * scale;
+  state.boardX         = BOARD_PADDING + (boardAreaW - state.boardDisplayW) / 2;
+  state.boardY         = BOARD_PADDING + (boardAreaH - state.boardDisplayH) / 2;
+  state.displayScale   = state.boardDisplayW / state.imgW;
+  state.dirty          = true;
+}
+
+function startLoop() {
+  if (state.rafId) cancelAnimationFrame(state.rafId);
+  function loop(now) {
+    renderFrame(now);
+    state.rafId = requestAnimationFrame(loop);
+  }
+  state.rafId = requestAnimationFrame(loop);
+}
+
+function stopLoop() {
+  if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 3 — Geometry: Edges, Paths, Sprites
+// ═══════════════════════════════════════════════════════════
+
+function bboxOf(edges) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  function add(p) {
+    if (p.x < x0) x0 = p.x; if (p.y < y0) y0 = p.y;
+    if (p.x > x1) x1 = p.x; if (p.y > y1) y1 = p.y;
+  }
+  for (const e of edges) {
+    add(e.p0); add(e.p1);
+    if (e.segs) for (const [c1, c2, ep] of e.segs) { add(c1); add(c2); add(ep); }
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+// Computes the 3-bezier tab segments for a shared edge from p0 to p1.
+// Left-perpendicular of (p0→p1) is used as the "outward" normal; eSgn flips which piece gets the tab.
+// Returns [[c1,c2,ep], [c1,c2,ep], [c1,c2,ep]] where all points are in board-pixel space.
+function computeTabSegs(p0, p1, eSgn) {
+  const edgeLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+  const dx = (p1.x - p0.x) / edgeLen, dy = (p1.y - p0.y) / edgeLen;
+  const npx = -dy, npy = dx;  // left-perpendicular of edge direction
+  const s   = eSgn;
+  const tp  = 0.35 + Math.random() * 0.30;
+  const t_n = 0.09 + Math.random() * 0.025;
+  const o   = tp - 0.5;
+
+  const P = (u, v) => ({
+    x: p0.x + u * edgeLen * dx + v * edgeLen * s * npx,
+    y: p0.y + u * edgeLen * dy + v * edgeLen * s * npy,
+  });
+
+  return [
+    [P(0.2+o, 0),            P(0.5+o, -t_n),         P(0.5-t_n+o, t_n)  ],
+    [P(0.5-2*t_n+o, 3*t_n),  P(0.5+2*t_n+o, 3*t_n),  P(0.5+t_n+o, t_n)  ],
+    [P(0.5+o, -t_n),         P(0.8+o, 0),             { x: p1.x, y: p1.y }],
+  ];
+}
+
+function appendF(path, edge) {
+  if (!edge.segs) { path.lineTo(edge.p1.x, edge.p1.y); return; }
+  for (const [c1, c2, ep] of edge.segs)
+    path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, ep.x, ep.y);
+}
+
+function appendB(path, edge) {
+  if (!edge.segs) { path.lineTo(edge.p0.x, edge.p0.y); return; }
+  for (let i = edge.segs.length - 1; i >= 0; i--) {
+    const [c1, c2] = edge.segs[i];
+    const prevEp   = i > 0 ? edge.segs[i - 1][2] : edge.p0;
+    path.bezierCurveTo(c2.x, c2.y, c1.x, c1.y, prevEp.x, prevEp.y);
+  }
+}
+
+// Builds jittered vertex grid and shared edge objects.
+// hE[r][c] = horizontal edge shared by piece (r-1,c) [bottom] and piece (r,c) [top].
+// vE[r][c] = vertical edge shared by piece (r,c-1) [right] and piece (r,c) [left].
+function buildEdges(cols, rows, pieceW, pieceH) {
+  const jx = pieceW * 0.11, jy = pieceH * 0.11;
+  const V = [];
+  for (let r = 0; r <= rows; r++) {
+    V[r] = [];
+    for (let c = 0; c <= cols; c++) {
+      let x = c * pieceW, y = r * pieceH;
+      if (c > 0 && c < cols) x += (Math.random() * 2 - 1) * jx;
+      if (r > 0 && r < rows) y += (Math.random() * 2 - 1) * jy;
+      V[r][c] = { x, y };
+    }
+  }
+
+  const hE = [], vE = [];
+  for (let r = 0; r <= rows; r++) {
+    hE[r] = [];
+    for (let c = 0; c < cols; c++) {
+      hE[r][c] = {
+        p0: V[r][c], p1: V[r][c + 1],
+        segs: (r === 0 || r === rows) ? null
+          : computeTabSegs(V[r][c], V[r][c + 1], Math.random() < 0.5 ? 1 : -1),
+      };
+    }
+  }
+  for (let r = 0; r < rows; r++) {
+    vE[r] = [];
+    for (let c = 0; c <= cols; c++) {
+      vE[r][c] = {
+        p0: V[r][c], p1: V[r + 1][c],
+        segs: (c === 0 || c === cols) ? null
+          : computeTabSegs(V[r][c], V[r + 1][c], Math.random() < 0.5 ? 1 : -1),
+      };
+    }
+  }
+  return { V, hE, vE };
+}
+
+function buildPiecePath(hE, vE, row, col) {
+  const top = hE[row][col], right = vE[row][col + 1],
+        bot = hE[row + 1][col], left = vE[row][col];
+  const path = new Path2D();
+  path.moveTo(top.p0.x, top.p0.y);
+  appendF(path, top);
+  appendF(path, right);
+  appendB(path, bot);
+  appendB(path, left);
+  path.closePath();
+  return { path, bb: bboxOf([top, right, bot, left]) };
+}
+
+// Renders one piece to an OffscreenCanvas sprite.
+// Draws the full image in board-pixel space; the clip path extracts the correct region.
+// Returns { canvas, bb, sm } where sm is the margin around the bounding box.
+function makeSprite(path2D, bb) {
+  const sm = Math.ceil(state.pieceW * TAB_MARGIN_RATIO);
+  const cv = new OffscreenCanvas(Math.ceil(bb.w + 2 * sm), Math.ceil(bb.h + 2 * sm));
+  const g  = cv.getContext('2d');
+
+  // Translate so board origin (0,0) maps to canvas position (sm - bb.x, sm - bb.y).
+  // This centers the bounding box in the sprite with sm margin on each side.
+  g.translate(sm - bb.x, sm - bb.y);
+
+  // Drop shadow: fill shape before clip so shadow bleeds outside the piece
+  g.save();
+  g.shadowColor   = 'rgba(0,0,0,.45)';
+  g.shadowBlur    = 6;
+  g.shadowOffsetY = 3;
+  g.fillStyle = '#000';
+  g.fill(path2D);
+  g.restore();
+
+  // Clip + draw full image in board space
+  g.save();
+  g.clip(path2D);
+  g.drawImage(state.imageEl, 0, 0, state.imgW, state.imgH, 0, 0, state.imgW, state.imgH);
+
+  // Depth strokes inside clip
+  g.save(); g.translate(1, 1);   g.strokeStyle = 'rgba(0,0,0,.25)';       g.lineWidth = 2.8; g.lineJoin = 'round'; g.stroke(path2D); g.restore();
+  g.save(); g.translate(-1, -1); g.strokeStyle = 'rgba(255,255,255,.20)';  g.lineWidth = 2.8; g.lineJoin = 'round'; g.stroke(path2D); g.restore();
+  g.restore(); // end clip
+
+  // Outer edge stroke
+  g.strokeStyle = 'rgba(0,0,0,.60)';
+  g.lineWidth   = 2.0;
+  g.lineJoin    = 'round';
+  g.stroke(path2D);
+
+  // Bevel gradient (clip again)
+  g.save();
+  g.clip(path2D);
+  const bevel = g.createLinearGradient(bb.x, bb.y, bb.x + bb.w, bb.y + bb.h);
+  bevel.addColorStop(0,    'rgba(255,255,255,0.20)');
+  bevel.addColorStop(0.42, 'rgba(255,255,255,0.04)');
+  bevel.addColorStop(0.58, 'rgba(0,0,0,0.04)');
+  bevel.addColorStop(1,    'rgba(0,0,0,0.26)');
+  g.fillStyle = bevel;
+  g.fillRect(bb.x - sm, bb.y - sm, bb.w + 2 * sm, bb.h + 2 * sm);
+  g.restore();
+
+  return { canvas: cv, bb, sm };
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 4 — Group Helpers
+// ═══════════════════════════════════════════════════════════
+
+// Rotate [x,y] by k×90° clockwise.
+function rotP(x, y, k) {
+  k = ((k % 4) + 4) % 4;
+  return k === 0 ? [x, y] : k === 1 ? [-y, x] : k === 2 ? [-x, -y] : [y, -x];
+}
+
+function bringToFront(g) {
+  const mine = state.z.filter(p => p.group === g);
+  state.z = state.z.filter(p => p.group !== g).concat(mine);
+  state.dirty = true;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 5 — Rendering Pipeline
+// ═══════════════════════════════════════════════════════════
+
+function renderFrame(now) {
+  // Animate dispRot toward rotCount*90 each frame
+  for (const g of state.groups) {
+    const tgt = g.rotCount * 90;
+    if (g.dispRot !== tgt) {
+      g.dispRot += (tgt - g.dispRot) * 0.35;
+      if (Math.abs(g.dispRot - tgt) < 0.5) g.dispRot = tgt;
+      state.dirty = true;
+    }
+  }
+  if (!state.dirty) return;
+  state.dirty = false;
+
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, canvasLogicalW(), canvasLogicalH());
+
+
+
+  const dragGroup = state.drag ? state.drag.group : null;
+  const ds        = state.displayScale;
+
+  for (const piece of state.z) {
+    const g              = piece.group;
+    const { canvas: cv, bb, sm } = piece.sprite;
+    ctx.save();
+    ctx.translate(g.T.x, g.T.y);
+    ctx.rotate(g.dispRot * Math.PI / 180);
+    ctx.scale(ds, ds);  // now in image-pixel (board) coords
+
+    if (g === dragGroup) {
+      ctx.shadowColor   = 'rgba(0,0,0,.5)';
+      ctx.shadowBlur    = 16 / ds;
+      ctx.shadowOffsetY = 8  / ds;
+    } else {
+      ctx.shadowColor   = 'rgba(0,0,0,.28)';
+      ctx.shadowBlur    = 5  / ds;
+      ctx.shadowOffsetY = 2  / ds;
+    }
+    ctx.drawImage(cv, bb.x - sm, bb.y - sm);
+    ctx.restore();
+  }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 6 — Input Handling
+// ═══════════════════════════════════════════════════════════
+
+// Returns the topmost piece under screen point (sx, sy), accounting for group rotation.
+function hitTest(sx, sy) {
+  for (let i = state.z.length - 1; i >= 0; i--) {
+    const p = state.z[i], g = p.group;
+    const dx = sx - g.T.x, dy = sy - g.T.y;
+    const [ux, uy] = rotP(dx / state.displayScale, dy / state.displayScale, -g.rotCount);
+    if (ctx.isPointInPath(p.path2D, ux, uy)) return p;
+  }
+  return null;
+}
+
+function rotateGroup(group, dir, pivot) {
+  const dx = group.T.x - pivot.x, dy = group.T.y - pivot.y;
+  if (dir > 0) { group.T.x = pivot.x - dy; group.T.y = pivot.y + dx; }
+  else         { group.T.x = pivot.x + dy; group.T.y = pivot.y - dx; }
+  group.rotCount = ((group.rotCount + dir) % 4 + 4) % 4;
+  if (!state.drag || state.drag.group !== group) trySnap(group);
+  state.dirty = true;
+}
+
+function onPointerDown(sx, sy, isSecondary) {
+  initAudio();
+  const p = hitTest(sx, sy);
+  if (!p) return;
+  bringToFront(p.group);
+  if (isSecondary) { rotateGroup(p.group, 1, { x: sx, y: sy }); return; }
+  state.drag = { group: p.group, off: { x: sx - p.group.T.x, y: sy - p.group.T.y } };
+  canvas.style.cursor = 'grabbing';
+  state.dirty = true;
+}
+
+function onPointerMove(sx, sy) {
+  if (!state.drag) return;
+  state.drag.group.T.x = sx - state.drag.off.x;
+  state.drag.group.T.y = sy - state.drag.off.y;
+  state.dirty = true;
+}
+
+function onPointerUp() {
+  if (state.drag) {
+    trySnap(state.drag.group);
+    state.drag = null;
+  }
+  canvas.style.cursor = 'default';
+}
+
+// ── Mouse events ─────────────────────────────────────────
+
+canvas.addEventListener('mousedown',   (e) => onPointerDown(e.offsetX, e.offsetY, e.button === 2));
+canvas.addEventListener('mousemove',   (e) => onPointerMove(e.offsetX, e.offsetY));
+window.addEventListener('mouseup',     ()  => onPointerUp());
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+window.addEventListener('keydown', (e) => {
+  if ((e.key === 'r' || e.key === 'R') && state.drag) {
+    const g = state.drag.group;
+    rotateGroup(g, 1, { x: g.T.x, y: g.T.y });
+  }
+});
+
+// ── Touch adapter ─────────────────────────────────────────
+
+let lastTap = { time: 0, x: 0, y: 0 };
+
+function touchCoords(touch) {
+  const r = canvas.getBoundingClientRect();
+  return { x: touch.clientX - r.left, y: touch.clientY - r.top };
+}
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (e.touches.length !== 1) return;
+  const { x, y } = touchCoords(e.touches[0]);
+  const now  = Date.now();
+  const dist = Math.hypot(x - lastTap.x, y - lastTap.y);
+  if (now - lastTap.time < 300 && dist < 15) {
+    const p = hitTest(x, y);
+    if (p) rotateGroup(p.group, 1, { x, y });
+  } else {
+    onPointerDown(x, y, false);
+  }
+  lastTap = { time: now, x, y };
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (e.touches.length !== 1) return;
+  const { x, y } = touchCoords(e.touches[0]);
+  onPointerMove(x, y);
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  onPointerUp();
+}, { passive: false });
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 7 — Game Logic
+// ═══════════════════════════════════════════════════════════
+
+function initPuzzle(difficulty) {
+  state.difficulty  = difficulty;
+  const target      = DIFFICULTIES[difficulty].target;
+  const aspectRatio = state.imgW / state.imgH;
+  const rows        = Math.max(2, Math.round(Math.sqrt(target / aspectRatio)));
+  const cols        = Math.max(2, Math.round(rows * aspectRatio));
+  state.gridRows    = rows;
+  state.gridCols    = cols;
+  state.pieceW      = state.imgW / cols;
+  state.pieceH      = state.imgH / rows;
+
+  repositionBoard();
+
+  const { V, hE, vE } = buildEdges(cols, rows, state.pieceW, state.pieceH);
+  state.pieces = [];
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const { path, bb } = buildPiecePath(hE, vE, r, c);
+      const sprite = makeSprite(path, bb);
+      const cx = (V[r][c].x + V[r][c+1].x + V[r+1][c].x + V[r+1][c+1].x) / 4;
+      const cy = (V[r][c].y + V[r][c+1].y + V[r+1][c].y + V[r+1][c+1].y) / 4;
+      state.pieces.push({ col: c, row: r, cx, cy, path2D: path, sprite, neighbors: [], group: null });
+    }
+  }
+
+  // Wire neighbors
+  const at = (r, c) => (r < 0 || c < 0 || r >= rows || c >= cols) ? null : state.pieces[r * cols + c];
+  for (const p of state.pieces)
+    p.neighbors = [at(p.row-1,p.col), at(p.row+1,p.col), at(p.row,p.col-1), at(p.row,p.col+1)].filter(Boolean);
+
+  state.drag          = null;
+  state.gameStartTime = Date.now();
+  state.gameEndTime   = null;
+
+  scatter();
+  updateHUD();
+}
+
+// Assigns each piece its own group and places groups randomly across the canvas.
+function scatter() {
+  const pieces = state.pieces;
+  if (!pieces.length) return;
+
+  const cw = canvasLogicalW(), ch = canvasLogicalH();
+  const ref = pieces[0];
+  const { bb, sm } = ref.sprite;
+  const dw    = Math.ceil(bb.w + 2 * sm) * state.displayScale;
+  const dh    = Math.ceil(bb.h + 2 * sm) * state.displayScale;
+  const n     = pieces.length;
+  const aspect = cw / ch;
+
+  // Build a grid with enough unique slots for every piece; tighten if needed.
+  let cols = Math.max(1, Math.floor(cw / (dw * 1.05)));
+  let rows = Math.max(1, Math.floor(ch / (dh * 1.05)));
+  if (cols * rows < n) {
+    cols = Math.max(1, Math.ceil(Math.sqrt(n * aspect)));
+    rows = Math.ceil(n / cols);
+  }
+  const cellW = cw / cols;
+  const cellH = ch / rows;
+
+  const slots = [];
+  for (let r = 0; r < rows && slots.length < n; r++)
+    for (let c = 0; c < cols && slots.length < n; c++)
+      slots.push({ x: (c + 0.5) * cellW, y: (r + 0.5) * cellH });
+
+  for (let i = slots.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [slots[i], slots[j]] = [slots[j], slots[i]];
+  }
+
+  state.groups = []; state.z = [];
+  pieces.forEach((piece, i) => {
+    const slot = slots[i];   // one unique slot per piece — no modulo reuse
+    const k    = Math.floor(Math.random() * 4);
+    const [rx, ry] = rotP(piece.cx, piece.cy, k);
+    const g = {
+      T: { x: slot.x - rx * state.displayScale, y: slot.y - ry * state.displayScale },
+      rotCount: k, dispRot: k * 90, pieces: [piece],
+    };
+    piece.group = g;
+    state.groups.push(g);
+    state.z.push(piece);
+  });
+  state.dirty = true;
+}
+
+// Tries to merge group with any neighbor group that has a matching T and rotCount.
+// Merges happen iteratively until no more snaps are possible.
+function trySnap(group) {
+  if (!state.groups.includes(group)) return group;
+  let again = true, target = group;
+  while (again) {
+    again = false;
+    outer:
+    for (const p of target.pieces) {
+      for (const q of p.neighbors) {
+        const h = q.group;
+        if (h === target) continue;
+        if (((target.rotCount - h.rotCount) % 4 + 4) % 4 !== 0) continue;
+        const snapTol = DIFFICULTIES[state.difficulty].snapThreshold;
+        if (Math.hypot(target.T.x - h.T.x, target.T.y - h.T.y) > snapTol) continue;
+        for (const np of target.pieces) { np.group = h; h.pieces.push(np); }
+        state.groups.splice(state.groups.indexOf(target), 1);
+        target = h; again = true;
+        playSnap(); updateHUD(); state.dirty = true;
+        break outer;
+      }
+    }
+  }
+  if (state.groups.length === 1 && state.pieces.length > 1) checkWin();
+  bringToFront(target);
+  return target;
+}
+
+function checkWin() {
+  if (state.groups.length === 1 && state.pieces.length > 1) {
+    state.gameEndTime = Date.now();
+    playWin();
+    showWinScreen();
+  }
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 9 — Audio
+// ═══════════════════════════════════════════════════════════
+
+function initAudio() {
+  if (!state.audioCtx) {
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+}
+
+function playSnap() {
+  if (!state.audioCtx) return;
+  const ac   = state.audioCtx;
+  const now  = ac.currentTime;
+  const osc  = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, now);
+  osc.frequency.exponentialRampToValueAtTime(440, now + 0.04);
+  gain.gain.setValueAtTime(0.25, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start(now);
+  osc.stop(now + 0.06);
+}
+
+function playWin() {
+  if (!state.audioCtx) return;
+  const ac    = state.audioCtx;
+  const now   = ac.currentTime;
+  const arp   = [523.25, 659.25, 783.99, 1046.50];
+
+  arp.forEach((freq, i) => {
+    const t    = now + i * 0.18;
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.35,  t + 0.06);   // attack
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45); // decay
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.start(t);
+    osc.stop(t + 0.5);
+  });
+
+  // Final chord: C5 + E5 + G5 together
+  const chordT = now + 4 * 0.18;
+  [523.25, 659.25, 783.99].forEach((freq) => {
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, chordT);
+    gain.gain.linearRampToValueAtTime(0.20, chordT + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, chordT + 1.2);
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.start(chordT);
+    osc.stop(chordT + 1.25);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 10 — Image Handling
+// ═══════════════════════════════════════════════════════════
+
+function loadDefaultImage() {
+  const W = 800, H = 600;
+  const ofc = new OffscreenCanvas(W, H);
+  const oc  = ofc.getContext('2d');
+
+  // 1. Radial gradient background
+  const grd = oc.createRadialGradient(W/2, H/2, 60, W/2, H/2, 500);
+  grd.addColorStop(0, '#1a1a6e');
+  grd.addColorStop(1, '#004040');
+  oc.fillStyle = grd;
+  oc.fillRect(0, 0, W, H);
+
+  // 2. 60 semi-transparent filled circles
+  const palette = ['#ff6b35','#f7c59f','#efefd0','#004e89','#1a936f','#ff9f1c','#e71d36'];
+  for (let i = 0; i < 60; i++) {
+    const r   = 20 + Math.random() * 50;
+    const cx  = Math.random() * W;
+    const cy  = Math.random() * H;
+    oc.globalAlpha = 0.40 + Math.random() * 0.30;
+    oc.fillStyle   = palette[i % palette.length];
+    oc.beginPath();
+    oc.arc(cx, cy, r, 0, Math.PI * 2);
+    oc.fill();
+  }
+  oc.globalAlpha = 1;
+
+  // 3. 5 large 8-pointed stars (stroke only)
+  for (let i = 0; i < 5; i++) {
+    const cx  = 80 + Math.random() * (W - 160);
+    const cy  = 80 + Math.random() * (H - 160);
+    const R   = 55 + Math.random() * 40;
+    const r   = R * 0.42;
+    const pts = 8;
+    oc.beginPath();
+    for (let p = 0; p < pts * 2; p++) {
+      const ang  = (p * Math.PI) / pts - Math.PI / 2;
+      const rad  = p % 2 === 0 ? R : r;
+      const px   = cx + rad * Math.cos(ang);
+      const py   = cy + rad * Math.sin(ang);
+      p === 0 ? oc.moveTo(px, py) : oc.lineTo(px, py);
+    }
+    oc.closePath();
+    oc.globalAlpha  = 0.30;
+    oc.strokeStyle  = palette[(i + 2) % palette.length];
+    oc.lineWidth    = 2;
+    oc.stroke();
+  }
+  oc.globalAlpha = 1;
+
+  // 4. Subtle thin-line grid
+  oc.strokeStyle = 'rgba(255,255,255,0.04)';
+  oc.lineWidth   = 0.5;
+  oc.beginPath();
+  for (let x = 0; x <= W; x += 40) { oc.moveTo(x, 0); oc.lineTo(x, H); }
+  for (let y = 0; y <= H; y += 40) { oc.moveTo(0, y); oc.lineTo(W, y); }
+  oc.stroke();
+
+  state.imageEl = ofc;
+  state.imgW    = W;
+  state.imgH    = H;
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader    = new FileReader();
+    reader.onerror  = () => reject(new Error('FileReader error'));
+    reader.onload   = (e) => {
+      const img     = new Image();
+      img.onerror   = () => reject(new Error('Image load error'));
+      img.onload    = () => {
+        state.imageEl = img;
+        state.imgW    = img.naturalWidth;
+        state.imgH    = img.naturalHeight;
+        resolve();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 11 — UI / DOM
+// ═══════════════════════════════════════════════════════════
+
+function updateHUD() {
+  const merged = state.pieces.length - state.groups.length;
+  const total  = Math.max(1, state.pieces.length - 1);
+  document.getElementById('hud-locked').textContent     = merged;
+  document.getElementById('hud-total').textContent      = state.pieces.length;
+  document.getElementById('hud-difficulty').textContent = DIFFICULTIES[state.difficulty].label;
+  const pct = (merged / total) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+function showWinScreen() {
+  const elapsed = (state.gameEndTime - state.gameStartTime);
+  const mm = Math.floor(elapsed / 60000).toString().padStart(2, '0');
+  const ss = Math.floor((elapsed % 60000) / 1000).toString().padStart(2, '0');
+  document.getElementById('win-piece-count').textContent = state.pieces.length + ' pieces';
+  document.getElementById('win-time').textContent        = mm + ':' + ss;
+  document.getElementById('win-difficulty').textContent  = DIFFICULTIES[state.difficulty].label;
+  document.getElementById('win-screen').hidden = false;
+}
+
+function hideWinScreen() {
+  document.getElementById('win-screen').hidden = true;
+}
+
+function getImageDataURL() {
+  if (state.imageEl instanceof HTMLImageElement) return state.imageEl.src;
+  // OffscreenCanvas — blit to a temporary canvas to get a data URL
+  const tmp = document.createElement('canvas');
+  tmp.width  = state.imgW;
+  tmp.height = state.imgH;
+  tmp.getContext('2d').drawImage(state.imageEl, 0, 0);
+  return tmp.toDataURL();
+}
+
+function showPeekModal() {
+  document.getElementById('peek-img').src = getImageDataURL();
+  document.getElementById('peek-modal').showModal();
+}
+
+function hidePeekModal() {
+  document.getElementById('peek-modal').close();
+}
+
+function buildUI() {
+  document.getElementById('new-puzzle-btn').addEventListener('click', () => {
+    hideWinScreen();
+    initPuzzle(state.difficulty);
+  });
+
+  document.getElementById('scatter-btn').addEventListener('click', () => { scatter(); updateHUD(); });
+
+
+  document.getElementById('peek-btn').addEventListener('click', showPeekModal);
+
+  const sidebar = document.getElementById('sidebar');
+  document.getElementById('sidebar-toggle').addEventListener('click', function() {
+    sidebar.classList.toggle('sidebar-collapsed');
+    const collapsed = sidebar.classList.contains('sidebar-collapsed');
+    this.textContent = collapsed ? '▶' : '◀';
+    this.dataset.tooltip = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    sidebar.addEventListener('transitionend', resizeCanvas, { once: true });
+  });
+  document.getElementById('peek-img').addEventListener('click', hidePeekModal);
+
+  const tooltip = document.createElement('div');
+  tooltip.id = 'sidebar-tooltip';
+  document.body.appendChild(tooltip);
+  document.getElementById('sidebar-toggle').addEventListener('mouseenter', (e) => {
+    const rect = e.target.getBoundingClientRect();
+    tooltip.textContent = e.target.dataset.tooltip;
+    tooltip.style.left = `${rect.right + 8}px`;
+    tooltip.style.top = `${rect.top + rect.height / 2 - tooltip.offsetHeight / 2}px`;
+    tooltip.style.opacity = '1';
+  });
+  document.getElementById('sidebar-toggle').addEventListener('mouseleave', () => {
+    tooltip.style.opacity = '0';
+  });
+
+  document.getElementById('win-play-again').addEventListener('click', () => {
+    hideWinScreen();
+    initPuzzle(state.difficulty);
+  });
+
+  document.getElementById('upload-btn').addEventListener('click', () => {
+    document.getElementById('upload-input').click();
+  });
+
+  // File upload: must wait for async load before starting puzzle
+  document.getElementById('upload-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    loadImageFromFile(file).then(() => {
+      initPuzzle(state.difficulty);
+    });
+  });
+
+  document.querySelectorAll('.diff-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.diff-btn').forEach((b) => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      hideWinScreen();
+      initPuzzle(e.currentTarget.dataset.difficulty);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 12 — Entry Point
+// ═══════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildUI();
+  resizeCanvas();
+  loadDefaultImage();
+  initPuzzle(state.difficulty);
+  startLoop();
+});
+</script>
+</body>
+</html>
