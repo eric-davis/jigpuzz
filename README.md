@@ -6,6 +6,8 @@ A browser-based jigsaw puzzle game with zero dependencies. Just open `index.html
 
 **Live demo:** https://esdavis.dev/jigpuzz
 
+**Test environment:** https://test.esdavis.dev/jigpuzz — latest `main` build.
+
 ## Features
 
 - **Image upload** — use any image as your puzzle
